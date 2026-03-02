@@ -13,7 +13,6 @@ import {
 } from 'recharts'
 
 // ─── Logger ───────────────────────────────────────────────────────────────────
-// Structured console logger for debugging fetch / DB errors.
 const logger = {
   info:  (msg: string, ...args: any[]) => console.info (`[Insights] ℹ️  ${msg}`, ...args),
   warn:  (msg: string, ...args: any[]) => console.warn (`[Insights] ⚠️  ${msg}`, ...args),
@@ -56,7 +55,6 @@ function fmtMoney(n: number) {
   return `Rs.${n.toFixed(0)}`
 }
 
-/** Safely parse items — handles string JSON, array, null */
 function parseItems(raw: any): any[] {
   if (!raw) return []
   if (Array.isArray(raw)) return raw
@@ -66,7 +64,6 @@ function parseItems(raw: any): any[] {
   return []
 }
 
-/** Get product ID from an item — handles multiple field name conventions */
 function getItemProductId(item: any): number | null {
   const raw = item?.productId ?? item?.product_id ?? item?.id ?? null
   const n = Number(raw)
@@ -97,7 +94,6 @@ function buildTrendData(
     if (!buckets.has(key)) buckets.set(key, { label, sales: 0, revenue: 0 })
   }
 
-  // Pre-fill buckets in chronological order
   if (period === 'daily') {
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now); d.setDate(now.getDate() - i)
@@ -189,20 +185,17 @@ function deriveInsights(
     return d.getMonth() === prevM && d.getFullYear() === prevY
   })
 
-  // ── Avg order value ────────────────────────────────────────────────────────
   const avgOrder    = thisMo.length > 0
     ? thisMo.reduce((a, s) => a + (s.total || 0), 0) / thisMo.length : 0
   const prevAvg     = lastMo.length > 0
     ? lastMo.reduce((a, s) => a + (s.total || 0), 0) / lastMo.length : 0
   const avgOrderPct = prevAvg > 0 ? ((avgOrder - prevAvg) / prevAvg * 100) : 0
 
-  // ── Active customers ───────────────────────────────────────────────────────
   const thisCust = new Set(thisMo.map(s => s.customer_name || 'Walk-in').filter(Boolean))
   const prevCust = new Set(lastMo.map(s => s.customer_name || 'Walk-in').filter(Boolean))
   const custPct  = prevCust.size > 0
     ? ((thisCust.size - prevCust.size) / prevCust.size * 100) : 0
 
-  // ── Top selling products ───────────────────────────────────────────────────
   const prodMap = new Map(products.map(p => [p.id, { name: p.name, price: p.price }]))
   const itemAgg: Map<string, { name: string; qty: number; rev: number }> = new Map()
 
@@ -254,7 +247,6 @@ function deriveInsights(
 
   const bestItem = topItems[0] ?? null
 
-  // ── Critical inventory ─────────────────────────────────────────────────────
   const salesVelocity: Map<number, number> = new Map()
   for (const sale of thisMo) {
     for (const item of parseItems(sale.items)) {
@@ -283,7 +275,6 @@ function deriveInsights(
       pct:     Math.round((p.stock_quantity / minimum) * 100),
     }))
 
-  // ── Category performance ───────────────────────────────────────────────────
   const catMap: Record<string, number> = {}
   const prodCat = new Map(products.map(p => [p.id, p.category || 'Others']))
 
@@ -307,7 +298,6 @@ function deriveInsights(
     .slice(0, 6)
     .map(([category, sales]) => ({ category, sales }))
 
-  // ── Trend data based on selected period ───────────────────────────────────
   const monthlyTrends = buildTrendData(sales, trendPeriod)
 
   return {
@@ -331,12 +321,8 @@ function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: '#fff',
-      border: 'none',
-      borderRadius: 12,
-      boxShadow: '0 4px 24px 0 rgba(0,0,0,0.12)',
-      padding: '10px 16px',
-      fontSize: 12,
+      background: '#fff', border: 'none', borderRadius: 12,
+      boxShadow: '0 4px 24px 0 rgba(0,0,0,0.12)', padding: '10px 16px', fontSize: 12,
     }}>
       {label && (
         <p style={{ color: '#9ca3af', fontWeight: 700, fontSize: 10, textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.05em' }}>
@@ -372,34 +358,17 @@ function StatCard({
 }) {
   return (
     <div
-      className="relative overflow-hidden rounded-xl p-6 text-white"
+      className="relative overflow-hidden rounded-xl p-6 text-white insights-stat-card"
       style={{ minHeight: 160, background: bgColor }}
     >
       <div className="flex items-start justify-between mb-5">
-        <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.22)' }}>
-          {icon}
-        </div>
-        <div className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.22)' }}>
-          {trendIcon}
-        </div>
+        <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.22)' }}>{icon}</div>
+        <div className="p-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.22)' }}>{trendIcon}</div>
       </div>
-      <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.82)' }}>
-        {label}
-      </p>
-      <h3 className="font-black mb-1.5 leading-tight" style={{ fontSize: 26, letterSpacing: '-0.5px' }}>
-        {value}
-      </h3>
-      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.68)' }}>
-        {subtext}
-      </p>
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: 96, height: 96,
-          right: -16, bottom: -16,
-          background: 'rgba(255,255,255,0.12)',
-        }}
-      />
+      <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.82)' }}>{label}</p>
+      <h3 className="font-black mb-1.5 leading-tight" style={{ fontSize: 26, letterSpacing: '-0.5px' }}>{value}</h3>
+      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.68)' }}>{subtext}</p>
+      <div className="absolute rounded-full" style={{ width: 96, height: 96, right: -16, bottom: -16, background: 'rgba(255,255,255,0.12)' }} />
     </div>
   )
 }
@@ -407,38 +376,28 @@ function StatCard({
 // ─── Period Selector ──────────────────────────────────────────────────────────
 
 const PERIOD_OPTIONS: { value: TrendPeriod; label: string }[] = [
-  { value: 'daily',       label: 'Daily'         },
-  { value: 'weekly',      label: 'Weekly'        },
-  { value: 'monthly',     label: 'Monthly'       },
-  { value: 'quarterly',   label: 'Quarterly'     },
-  { value: 'semi-annual', label: 'Semi-Annual'   },
-  { value: 'annual',      label: 'Annual'        },
+  { value: 'daily',       label: 'Daily'       },
+  { value: 'weekly',      label: 'Weekly'      },
+  { value: 'monthly',     label: 'Monthly'     },
+  { value: 'quarterly',   label: 'Quarterly'   },
+  { value: 'semi-annual', label: 'Semi-Annual' },
+  { value: 'annual',      label: 'Annual'      },
 ]
 
-function PeriodSelector({
-  value,
-  onChange,
-}: {
-  value:    TrendPeriod
-  onChange: (v: TrendPeriod) => void
-}) {
+function PeriodSelector({ value, onChange }: { value: TrendPeriod; onChange: (v: TrendPeriod) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+    <div className="insights-period-wrap" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
       {PERIOD_OPTIONS.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           style={{
-            padding: '5px 12px',
-            borderRadius: 20,
+            padding: '5px 12px', borderRadius: 20,
             border: value === opt.value ? 'none' : '1px solid #e5e7eb',
             background: value === opt.value ? '#6366f1' : '#fff',
             color: value === opt.value ? '#fff' : '#6b7280',
             fontWeight: value === opt.value ? 700 : 500,
-            fontSize: 11,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            outline: 'none',
+            fontSize: 11, cursor: 'pointer', transition: 'all 0.15s ease', outline: 'none',
           }}
         >
           {opt.label}
@@ -453,14 +412,12 @@ function PeriodSelector({
 export default function BusinessInsights() {
   const router = useRouter()
 
-  const [loading,      setLoading]      = useState(true)
-  const [refreshing,   setRefreshing]   = useState(false)
-  const [sales,        setSales]        = useState<SaleRow[]>([])
-  const [products,     setProducts]     = useState<ProductRow[]>([])
-  const [errorMsg,     setErrorMsg]     = useState<string | null>(null)
-  const [trendPeriod,  setTrendPeriod]  = useState<TrendPeriod>('monthly')
-
-  // ── Secure fetch with structured error logging ─────────────────────────────
+  const [loading,     setLoading]     = useState(true)
+  const [refreshing,  setRefreshing]  = useState(false)
+  const [sales,       setSales]       = useState<SaleRow[]>([])
+  const [products,    setProducts]    = useState<ProductRow[]>([])
+  const [errorMsg,    setErrorMsg]    = useState<string | null>(null)
+  const [trendPeriod, setTrendPeriod] = useState<TrendPeriod>('monthly')
 
   const fetchData = useCallback(async (quiet = false) => {
     quiet ? setRefreshing(true) : setLoading(true)
@@ -468,7 +425,6 @@ export default function BusinessInsights() {
     logger.info('Starting data fetch…', { quiet })
 
     try {
-      // 1. Session validation
       const { data: { session }, error: sessErr } = await supabase.auth.getSession()
 
       if (sessErr) {
@@ -486,7 +442,6 @@ export default function BusinessInsights() {
 
       logger.debug('Session OK', { userId: session.user.id })
 
-      // 2. Company profile
       const { data: profile, error: profErr } = await supabase
         .from('profiles')
         .select('company_id')
@@ -495,11 +450,8 @@ export default function BusinessInsights() {
 
       if (profErr) {
         logger.error('Profile fetch failed', {
-          message:  profErr.message,
-          code:     profErr.code,
-          details:  profErr.details,
-          hint:     profErr.hint,
-          userId:   session.user.id,
+          message: profErr.message, code: profErr.code,
+          details: profErr.details, hint: profErr.hint, userId: session.user.id,
         })
         setErrorMsg('Could not load company profile. Please try again.')
         return
@@ -513,11 +465,9 @@ export default function BusinessInsights() {
 
       logger.debug('Company profile OK', { companyId: profile.company_id })
 
-      // 3. Determine look-back window based on what's needed for widest period (annual × 5 yrs)
       const lookbackDate = new Date()
       lookbackDate.setFullYear(lookbackDate.getFullYear() - 5)
 
-      // 4. Parallel data fetch
       const [salesRes, prodRes] = await Promise.all([
         supabase
           .from('sales')
@@ -526,7 +476,6 @@ export default function BusinessInsights() {
           .gte('created_at', lookbackDate.toISOString())
           .order('created_at', { ascending: false })
           .limit(5000),
-
         supabase
           .from('products')
           .select('id, name, category, price, stock_quantity, company_id')
@@ -534,23 +483,18 @@ export default function BusinessInsights() {
           .limit(500),
       ])
 
-      // 5. Individual error checks with detailed logging
       if (salesRes.error) {
         logger.error('Sales fetch error', {
-          message: salesRes.error.message,
-          code:    salesRes.error.code,
-          details: salesRes.error.details,
-          hint:    salesRes.error.hint,
+          message: salesRes.error.message, code: salesRes.error.code,
+          details: salesRes.error.details, hint: salesRes.error.hint,
         })
         throw new Error(`Sales query failed: ${salesRes.error.message}`)
       }
 
       if (prodRes.error) {
         logger.error('Products fetch error', {
-          message: prodRes.error.message,
-          code:    prodRes.error.code,
-          details: prodRes.error.details,
-          hint:    prodRes.error.hint,
+          message: prodRes.error.message, code: prodRes.error.code,
+          details: prodRes.error.details, hint: prodRes.error.hint,
         })
         throw new Error(`Products query failed: ${prodRes.error.message}`)
       }
@@ -558,21 +502,14 @@ export default function BusinessInsights() {
       const salesData    = salesRes.data ?? []
       const productsData = prodRes.data  ?? []
 
-      logger.info('Data fetch complete', {
-        salesCount:    salesData.length,
-        productsCount: productsData.length,
-      })
+      logger.info('Data fetch complete', { salesCount: salesData.length, productsCount: productsData.length })
 
       setSales(salesData)
       setProducts(productsData)
 
     } catch (err: any) {
       const errMessage = err?.message ?? 'An unexpected error occurred'
-      logger.error('Unhandled fetch error', {
-        message: errMessage,
-        stack:   err?.stack,
-        raw:     err,
-      })
+      logger.error('Unhandled fetch error', { message: errMessage, stack: err?.stack, raw: err })
       setErrorMsg(errMessage)
     } finally {
       setLoading(false)
@@ -587,7 +524,7 @@ export default function BusinessInsights() {
     [sales, products, trendPeriod],
   )
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+  // ─── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -598,17 +535,14 @@ export default function BusinessInsights() {
     )
   }
 
-  // ─── Error state ───────────────────────────────────────────────────────────
+  // ─── Error ─────────────────────────────────────────────────────────────────
 
   if (errorMsg) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 font-sans" style={{ background: '#f8f9fc' }}>
         <AlertTriangle className="text-red-400" size={32} />
         <p className="text-sm font-bold text-gray-500 max-w-xs text-center">{errorMsg}</p>
-        <button
-          onClick={() => fetchData()}
-          className="px-5 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors"
-        >
+        <button onClick={() => fetchData()} className="px-5 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors">
           Retry
         </button>
       </div>
@@ -617,16 +551,104 @@ export default function BusinessInsights() {
 
   const noData = ins.totalSalesCount === 0 && ins.totalProductCount === 0
 
-  // ─── Full render ───────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="font-sans" style={{ background: '#f8f9fc', minHeight: '100vh', padding: '28px 32px' }}>
+    <div className="font-sans min-h-screen px-4 py-6 sm:px-6 sm:py-7 lg:px-8" style={{ background: '#f8f9fc' }}>
+
+      {/* ─────────────────────────────────────────────────────────────────────
+          Responsive styles — only fires below 640 px (mobile).
+          Desktop layout is completely untouched.
+         ───────────────────────────────────────────────────────────────────── */}
+      <style>{`
+
+        /* ── Period pill bar: single scrollable row, no wrapping ── */
+        @media (max-width: 640px) {
+          .insights-period-wrap {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+          }
+          .insights-period-wrap::-webkit-scrollbar { display: none; }
+          .insights-period-wrap button {
+            flex-shrink: 0 !important;
+            white-space: nowrap !important;
+            /* Slightly larger hit-target on touch */
+            padding: 7px 14px !important;
+            font-size: 12px !important;
+          }
+
+          /* ── Stat cards: reduce internal padding so the value isn't clipped ── */
+          .insights-stat-card {
+            min-height: 140px !important;
+            padding: 16px !important;
+          }
+          .insights-stat-card h3 {
+            font-size: 22px !important;
+          }
+
+          /* ── Trend section header: stack vertically ── */
+          .insights-trend-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+          .insights-trend-header > div { width: 100%; }
+
+          /* ── Charts: comfortable height on a phone screen ── */
+          .insights-chart { height: 220px !important; }
+
+          /* ── Top-item rows: tighter horizontal padding ── */
+          .insights-item-row {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+            padding-top: 12px !important;
+            padding-bottom: 12px !important;
+          }
+          /* Name truncation: give the text room before the price column */
+          .insights-item-name { max-width: 55vw; }
+
+          /* ── Critical inventory: let long names wrap naturally ── */
+          .insights-crit-name { word-break: break-word; }
+
+          /* ── Inventory + Category panels: tighter padding ── */
+          .insights-panel-inner { padding: 16px !important; }
+
+          /* ── Page-level vertical rhythm: reduce gaps slightly ── */
+          .insights-section-gap { margin-bottom: 16px !important; }
+
+          /* ── No-data / empty-state placeholders ── */
+          .insights-empty { padding: 28px 0 !important; }
+
+          /* ── Touch-friendly refresh button ── */
+          .insights-refresh-btn {
+            padding: 10px 16px !important;
+            font-size: 13px !important;
+          }
+
+          /* ── Page title ── */
+          .insights-page-title { font-size: 19px !important; }
+        }
+
+        /* ── Extra-small phones (≤ 380 px) ── */
+        @media (max-width: 380px) {
+          .insights-stat-card h3 { font-size: 19px !important; }
+          .insights-chart       { height: 190px !important;   }
+          .insights-item-name   { max-width: 48vw;            }
+        }
+      `}</style>
+
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
 
         {/* ── Page header ── */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6 insights-section-gap">
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111827', margin: 0, lineHeight: 1.2 }}>
+            <h1
+              className="insights-page-title"
+              style={{ fontSize: 22, fontWeight: 900, color: '#111827', margin: 0, lineHeight: 1.2 }}
+            >
               Business Insights
             </h1>
             <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>
@@ -635,13 +657,8 @@ export default function BusinessInsights() {
           </div>
           <button
             onClick={() => fetchData(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              padding: '8px 16px', background: '#fff',
-              border: '1px solid #e5e7eb', borderRadius: 12,
-              fontSize: 13, fontWeight: 600, color: '#6b7280',
-              cursor: 'pointer', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)',
-            }}
+            className="insights-refresh-btn self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-500 cursor-pointer"
+            style={{ boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)' }}
           >
             <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} />
             <span>Refresh</span>
@@ -661,23 +678,16 @@ export default function BusinessInsights() {
           </div>
         )}
 
-        {/* ── 4 Stat Cards ── */}
-        <div
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}
-        >
-          {/* Card 1 — Green */}
+        {/* ── Stat Cards: 1 col → 2 col → 4 col ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6 insights-section-gap">
           <StatCard
             bgColor="#16a34a"
             icon={<Award size={22} color="#fff" />}
             trendIcon={<TrendingUp size={16} color="#fff" />}
             label="Best Performing Item"
             value={ins.bestItem?.name ?? (noData ? 'No data' : 'N/A')}
-            subtext={ins.bestItem
-              ? `${ins.bestItem.qty} units sold this month`
-              : 'No sales recorded yet'}
+            subtext={ins.bestItem ? `${ins.bestItem.qty} units sold this month` : 'No sales recorded yet'}
           />
-
-          {/* Card 2 — Red */}
           <StatCard
             bgColor="#dc2626"
             icon={<AlertTriangle size={22} color="#fff" />}
@@ -686,8 +696,6 @@ export default function BusinessInsights() {
             value={`${ins.criticalCount} Items`}
             subtext="Below minimum stock level"
           />
-
-          {/* Card 3 — Blue */}
           <StatCard
             bgColor="#2563eb"
             icon={<ShoppingCart size={22} color="#fff" />}
@@ -700,8 +708,6 @@ export default function BusinessInsights() {
               ? `${ins.avgOrderPct > 0 ? '+' : ''}${ins.avgOrderPct.toFixed(1)}% from last month`
               : 'No comparison data yet'}
           />
-
-          {/* Card 4 — Purple */}
           <StatCard
             bgColor="#9333ea"
             icon={<Users size={22} color="#fff" />}
@@ -712,44 +718,47 @@ export default function BusinessInsights() {
             value={ins.custCount > 0 ? ins.custCount.toLocaleString() : '0'}
             subtext={ins.custPct !== 0
               ? `${ins.custPct > 0 ? '+' : ''}${ins.custPct.toFixed(1)}% from last month`
-              : 'This month\'s customers'}
+              : "This month's customers"}
           />
         </div>
 
         {/* ── Top Selling Items ── */}
-        <div style={{
-          background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
-          boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', marginBottom: 24, overflow: 'hidden',
-        }}>
-          {/* Card header */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '18px 28px', borderBottom: '1px solid #f9fafb',
-          }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: 0 }}>
-              Top Selling Items
-            </h2>
+        <div
+          className="insights-section-gap"
+          style={{
+            background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
+            boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', marginBottom: 24, overflow: 'hidden',
+          }}
+        >
+          <div
+            className="flex items-center justify-between px-5 py-4 sm:px-7"
+            style={{ borderBottom: '1px solid #f9fafb' }}
+          >
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: 0 }}>Top Selling Items</h2>
             <Award size={18} color="#f59e0b" />
           </div>
 
           {ins.topItems.length === 0 ? (
-            <div style={{ padding: '48px 28px', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>
+            <div
+              className="insights-empty"
+              style={{ padding: '48px 28px', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}
+            >
               {noData ? 'Record sales to see top selling items here' : 'No item sales data found'}
             </div>
           ) : (
             ins.topItems.map((item, idx) => (
               <div
                 key={item.name}
+                className="insights-item-row flex items-center justify-between px-5 py-3 sm:px-7 sm:py-4"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '14px 28px',
                   borderBottom: idx < ins.topItems.length - 1 ? '1px solid #f3f4f6' : 'none',
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Left: rank + name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
                   <span style={{
                     width: 32, height: 32, borderRadius: '50%',
                     background: '#eef2ff', color: '#6366f1',
@@ -758,8 +767,11 @@ export default function BusinessInsights() {
                   }}>
                     {idx + 1}
                   </span>
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      className="insights-item-name text-sm font-bold text-gray-900 truncate"
+                      style={{ margin: 0 }}
+                    >
                       {item.name}
                     </p>
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, marginBottom: 0 }}>
@@ -768,7 +780,8 @@ export default function BusinessInsights() {
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
+                {/* Right: revenue + trend */}
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0 }}>
                     {fmtMoney(item.rev)}
                   </p>
@@ -777,9 +790,7 @@ export default function BusinessInsights() {
                     display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3,
                     color: item.trendDir === 'up' ? '#10b981' : '#ef4444',
                   }}>
-                    {item.trendDir === 'up'
-                      ? <TrendingUp size={12} />
-                      : <TrendingDown size={12} />}
+                    {item.trendDir === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                     {item.trendDir === 'up' ? '+' : '-'}{item.trendPct}%
                   </p>
                 </div>
@@ -788,14 +799,17 @@ export default function BusinessInsights() {
           )}
         </div>
 
-        {/* ── Critical Inventory + Category Performance ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* ── Critical Inventory + Category: 1 col → 2 col ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6 insights-section-gap">
 
           {/* Critical Low Inventory */}
-          <div style={{
-            background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
-            boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', padding: 24,
-          }}>
+          <div
+            className="insights-panel-inner"
+            style={{
+              background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
+              boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', padding: 24,
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
               <AlertTriangle size={18} color="#ef4444" />
               <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: 0 }}>
@@ -804,17 +818,21 @@ export default function BusinessInsights() {
             </div>
 
             {ins.criticalProducts.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>
-                {ins.totalProductCount === 0
-                  ? 'No products found'
-                  : '✓ All stock levels are healthy'}
+              <div
+                className="insights-empty"
+                style={{ padding: '32px 0', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}
+              >
+                {ins.totalProductCount === 0 ? 'No products found' : '✓ All stock levels are healthy'}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {ins.criticalProducts.map(item => (
                   <div key={item.name} style={{ paddingLeft: 14, borderLeft: '4px solid #ef4444' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: '#1f2937', margin: 0 }}>
+                      <p
+                        className="insights-crit-name"
+                        style={{ fontSize: 14, fontWeight: 700, color: '#1f2937', margin: 0 }}
+                      >
                         {item.name}
                       </p>
                       <span style={{
@@ -826,13 +844,14 @@ export default function BusinessInsights() {
                         {item.pct}% stock
                       </span>
                     </div>
+                    {/* On mobile the three stats wrap into two lines */}
                     <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 5, marginBottom: 0 }}>
                       Current: <strong style={{ color: '#4b5563' }}>{item.current}</strong>
                       <span style={{ margin: '0 6px' }}>•</span>
-                      Minimum: <strong style={{ color: '#4b5563' }}>{item.minimum}</strong>
+                      Min: <strong style={{ color: '#4b5563' }}>{item.minimum}</strong>
                       <span style={{ margin: '0 6px' }}>•</span>
                       <span style={{ color: '#dc2626', fontWeight: 700 }}>
-                        Restock needed: {item.restock}
+                        Restock: {item.restock}
                       </span>
                     </p>
                   </div>
@@ -842,20 +861,29 @@ export default function BusinessInsights() {
           </div>
 
           {/* Category Performance */}
-          <div style={{
-            background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
-            boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', padding: 24,
-          }}>
+          <div
+            className="insights-panel-inner"
+            style={{
+              background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
+              boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', padding: 24,
+            }}
+          >
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: '0 0 20px' }}>
               Category Performance
             </h2>
 
             {ins.categoryPerformance.length === 0 ? (
-              <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>
+              <div
+                className="insights-chart insights-empty"
+                style={{
+                  height: 260, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600,
+                }}
+              >
                 No category data yet
               </div>
             ) : (
-              <div style={{ height: 260 }}>
+              <div className="insights-chart" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={ins.categoryPerformance}
@@ -866,12 +894,12 @@ export default function BusinessInsights() {
                     <XAxis
                       dataKey="category"
                       axisLine={false} tickLine={false}
-                      tick={{ fill: '#9ca3af', fontSize: 12 }}
+                      tick={{ fill: '#9ca3af', fontSize: 11 }}
+                      /* On narrow screens shorten labels automatically */
+                      interval={0}
+                      tickFormatter={(v: string) => v.length > 8 ? v.slice(0, 7) + '…' : v}
                     />
-                    <YAxis
-                      axisLine={false} tickLine={false}
-                      tick={{ fill: '#9ca3af', fontSize: 12 }}
-                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
                     <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} />
                     <Bar dataKey="sales" name="Units Sold" fill="#6366f1" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -886,62 +914,66 @@ export default function BusinessInsights() {
           background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6',
           boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)', padding: 24,
         }}>
-          {/* Trend header with period selector */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          {/* Header: stacks on mobile, side-by-side on sm+ */}
+          <div className="insights-trend-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#111827', margin: 0 }}>
               Sales &amp; Revenue Trends
             </h2>
-            <PeriodSelector value={trendPeriod} onChange={setTrendPeriod} />
+            <div>
+              <PeriodSelector value={trendPeriod} onChange={setTrendPeriod} />
+            </div>
           </div>
 
           {ins.monthlyTrends.every(d => d.sales === 0 && d.revenue === 0) ? (
-            <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>
+            <div
+              className="insights-chart insights-empty"
+              style={{
+                height: 280, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600,
+              }}
+            >
               {noData ? 'Trend data will appear once sales are recorded' : 'No trend data in this period'}
             </div>
           ) : (
-            <div style={{ height: 300 }}>
+            <div className="insights-chart" style={{ height: 280 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={ins.monthlyTrends}
-                  margin={{ top: 4, right: 28, left: -8, bottom: 0 }}
-                >
+                <LineChart data={ins.monthlyTrends} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis
                     dataKey="label"
                     axisLine={false} tickLine={false}
-                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
                     yAxisId="left"
                     axisLine={false} tickLine={false}
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    width={36}
                   />
                   <YAxis
                     yAxisId="right" orientation="right"
                     axisLine={false} tickLine={false}
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
-                    tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+                    tick={{ fill: '#9ca3af', fontSize: 11 }}
+                    tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+                    width={40}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Legend
-                    verticalAlign="top" align="right"
-                    iconType="circle" iconSize={8}
+                    verticalAlign="top" align="right" iconType="circle" iconSize={8}
                     wrapperStyle={{ paddingBottom: 16, fontSize: 11, fontWeight: 600 }}
-                    formatter={v => (
+                    formatter={(v: string) => (
                       <span style={{ color: '#6b7280', fontWeight: 600, fontSize: 11 }}>{v}</span>
                     )}
                   />
                   <Line
-                    yAxisId="left"
-                    type="monotone" dataKey="sales" name="Sales (Units)"
+                    yAxisId="left" type="monotone" dataKey="sales" name="Sales (Units)"
                     stroke="#8b5cf6" strokeWidth={2.5}
                     dot={{ r: 4, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
                     activeDot={{ r: 7, strokeWidth: 0 }}
                   />
                   <Line
-                    yAxisId="right"
-                    type="monotone" dataKey="revenue" name="Revenue"
+                    yAxisId="right" type="monotone" dataKey="revenue" name="Revenue"
                     stroke="#10b981" strokeWidth={2.5}
                     dot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
                     activeDot={{ r: 7, strokeWidth: 0 }}

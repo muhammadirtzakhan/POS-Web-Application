@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getUserRole } from '../../action'
-import { Lock, User, AlertCircle, Loader2 } from 'lucide-react'
+import { Lock, User, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -42,10 +42,11 @@ function validate(email: string, password: string): string | null {
 export default function LoginPage() {
   const router = useRouter()
 
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [email,       setEmail]       = useState('')
+  const [password,    setPassword]    = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [errorMsg,    setErrorMsg]    = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Brute-force rate limiting (client-side guard)
   const attempts     = useRef(0)
@@ -163,7 +164,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 required
-                maxLength={254}               // RFC 5321 max email length
+                maxLength={254}
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -181,15 +182,23 @@ export default function LoginPage() {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-300" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
-                maxLength={128}               // sane upper bound
+                maxLength={128}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-4 pl-12 pr-4 text-sm font-semibold outline-none transition-all focus:border-[#5d44ff] focus:ring-4 focus:ring-indigo-50"
+                className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-4 pl-12 pr-12 text-sm font-semibold outline-none transition-all focus:border-[#5d44ff] focus:ring-4 focus:ring-indigo-50"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
           </div>
 

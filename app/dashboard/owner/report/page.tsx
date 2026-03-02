@@ -19,34 +19,31 @@ const log = {
 
 // ─── Types — exactly matching DB schema ──────────────────────────────────────
 
-/** sales table (all real columns + 2 added via migration.sql) */
 interface SaleRow {
-  id:              string        // uuid PK
-  customer_name:   string | null // text
-  customer_email:  string | null // text  ← ADD via migration.sql
-  payment_method:  string | null // text  ← ADD via migration.sql
-  items:           any           // jsonb
-  total:           number        // numeric
-  subtotal:        number | null // numeric
-  discount:        number | null // numeric ← already exists in schema
-  company_id:      string        // uuid FK → companies.id
-  created_at:      string        // timestamptz
-  user_id:         string | null // uuid FK → auth.users
-  created_by:      string | null // uuid FK → auth.users
+  id:              string
+  customer_name:   string | null
+  customer_email:  string | null
+  payment_method:  string | null
+  items:           any
+  total:           number
+  subtotal:        number | null
+  discount:        number | null
+  company_id:      string
+  created_at:      string
+  user_id:         string | null
+  created_by:      string | null
 }
 
-/** products table — all columns */
 interface ProductRow {
-  id:             number  // int8 PK
-  name:           string  // text
-  sku:            string  // text
-  price:          number  // numeric
-  stock_quantity: number  // int4
-  category:       string  // text
-  company_id:     string  // uuid FK → companies.id
+  id:             number
+  name:           string
+  sku:            string
+  price:          number
+  stock_quantity: number
+  category:       string
+  company_id:     string
 }
 
-/** companies table — all columns used in PDF headers */
 interface CompanyRow {
   id:          string
   name:        string
@@ -59,7 +56,6 @@ interface CompanyRow {
   logo_base64: string | null
 }
 
-/** profiles table */
 interface ProfileRow {
   company_id:   string
   company_name: string | null
@@ -97,7 +93,6 @@ function parseItems(raw: any): any[] {
   return []
 }
 
-/** Tax = total − subtotal. Since no tax column exists in DB */
 function getTax(s: SaleRow): number {
   if (s.subtotal != null && s.total != null) {
     const t = s.total - s.subtotal
@@ -165,7 +160,6 @@ async function generateFinancialPDF(
 
   const prodMap = new Map(products.map(p => [p.id, p]))
 
-  // ── Header banner ─────────────────────────────────────────────────────────
   doc.setFillColor(79, 70, 229)
   doc.rect(0, 0, W, 44, 'F')
 
@@ -197,7 +191,6 @@ async function generateFinancialPDF(
 
   y = 52
 
-  // ── KPI boxes ─────────────────────────────────────────────────────────────
   const totalRevenue  = sales.reduce((a, s) => a + (s.total || 0), 0)
   const totalSubtotal = sales.reduce((a, s) => a + (s.subtotal ?? s.total ?? 0), 0)
   const totalTax      = sales.reduce((a, s) => a + getTax(s), 0)
@@ -236,7 +229,6 @@ async function generateFinancialPDF(
     )
   }
 
-  // ── Sales Transactions ─────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 27, 75)
   doc.text('Sales Transactions', mL, y)
   doc.setDrawColor(79, 70, 229); doc.setLineWidth(0.4)
@@ -277,7 +269,6 @@ async function generateFinancialPDF(
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // ── General Ledger ─────────────────────────────────────────────────────────
   if (y > H - 70) { doc.addPage(); y = 20 }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 27, 75)
   doc.text('General Ledger — Revenue Summary', mL, y)
@@ -322,7 +313,6 @@ async function generateFinancialPDF(
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // ── Payment Method Breakdown ───────────────────────────────────────────────
   if (y > H - 60) { doc.addPage(); y = 20 }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 27, 75)
   doc.text('Revenue by Payment Method', mL, y)
@@ -375,7 +365,6 @@ async function generateCustomerPDF(
 
   const prodMap = new Map(products.map(p => [p.id, p]))
 
-  // Header
   doc.setFillColor(79, 70, 229); doc.rect(0, 0, W, 44, 'F')
   if (company.logo_base64) { try { doc.addImage(company.logo_base64, 'PNG', mL, 4, 20, 20) } catch { } }
   const tX = company.logo_base64 ? mL + 24 : mL
@@ -390,7 +379,6 @@ async function generateCustomerPDF(
 
   y = 52
 
-  // Info panel
   doc.setFillColor(238, 242, 255); doc.roundedRect(mL, y, W - mL - mR, 36, 3, 3, 'F')
   doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(30, 27, 75)
   doc.text(customer.name, mL + 5, y + 9)
@@ -402,7 +390,6 @@ async function generateCustomerPDF(
   doc.text(`Last Purchase: ${fmtDate(customer.lastPurchase)}`, mL + 70, y + 31)
   y += 44
 
-  // History table
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 27, 75)
   doc.text('Purchase History', mL, y)
   doc.setDrawColor(79, 70, 229); doc.setLineWidth(0.4); doc.line(mL, y + 1.5, mL + 40, y + 1.5)
@@ -463,7 +450,6 @@ async function generateLedgerExcel(
   const prodMap = new Map(products.map(p => [p.id, p]))
   const wb      = XLSX.utils.book_new()
 
-  // ── Sheet 1: General Ledger ───────────────────────────────────────────────
   let runBal = 0
   const wsLedger = XLSX.utils.aoa_to_sheet([
     [company.name],
@@ -506,7 +492,6 @@ async function generateLedgerExcel(
   ]
   XLSX.utils.book_append_sheet(wb, wsLedger, 'General Ledger')
 
-  // ── Sheet 2: Customer Summary ─────────────────────────────────────────────
   const custMap: Record<string, { name: string; email: string; orders: number; spent: number; discount: number; last: string }> = {}
   for (const s of sales) {
     const k = s.customer_name || 'Walk-in'
@@ -529,7 +514,6 @@ async function generateLedgerExcel(
   wsCust['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 10 }, { wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 16 }]
   XLSX.utils.book_append_sheet(wb, wsCust, 'Customer Summary')
 
-  // ── Sheet 3: Daily Breakdown ──────────────────────────────────────────────
   const byDay: Record<string, { revenue: number; tax: number; discount: number; orders: number }> = {}
   for (const s of sales) {
     const k = fmtDate(s.created_at)
@@ -550,7 +534,6 @@ async function generateLedgerExcel(
   wsDaily['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 20 }]
   XLSX.utils.book_append_sheet(wb, wsDaily, 'Daily Breakdown')
 
-  // ── Sheet 4: Product Performance ─────────────────────────────────────────
   const prodPerf: Record<string, { name: string; sku: string; category: string; qty: number; revenue: number }> = {}
   for (const s of sales) {
     for (const it of parseItems(s.items)) {
@@ -574,7 +557,6 @@ async function generateLedgerExcel(
   wsProd['!cols'] = [{ wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 18 }]
   XLSX.utils.book_append_sheet(wb, wsProd, 'Product Performance')
 
-  // ── Sheet 5: Payment Methods ──────────────────────────────────────────────
   const totRev = sales.reduce((a, s) => a + (s.total || 0), 0)
   const byPaySheet: Record<string, { revenue: number; discount: number; orders: number }> = {}
   for (const s of sales) {
@@ -683,7 +665,6 @@ export default function ReportGeneration() {
 
       const { data: profile, error: profErr } = await supabase
         .from('profiles')
-        // Uses real columns: company_id, company_name, full_name, email, role
         .select('company_id, company_name, full_name, email, role')
         .eq('id', session.user.id)
         .single<ProfileRow>()
@@ -702,23 +683,18 @@ export default function ReportGeneration() {
       const [salesRes, prodRes, compRes] = await Promise.all([
         supabase
           .from('sales')
-          // Real columns from schema + customer_email + payment_method (add via migration.sql)
           .select('id, customer_name, customer_email, payment_method, items, total, subtotal, discount, company_id, created_at, user_id, created_by')
           .eq('company_id', profile.company_id)
           .gte('created_at', lookback.toISOString())
           .order('created_at', { ascending: false })
           .limit(10000),
-
         supabase
           .from('products')
-          // Real columns: id, name, sku, price, stock_quantity, category, company_id
           .select('id, name, sku, price, stock_quantity, category, company_id')
           .eq('company_id', profile.company_id)
           .limit(1000),
-
         supabase
           .from('companies')
-          // Real columns: id, name, address, city, phone, email, tax_number, tagline, logo_base64
           .select('id, name, address, city, phone, email, tax_number, tagline, logo_base64')
           .eq('id', profile.company_id)
           .single<CompanyRow>(),
@@ -733,7 +709,6 @@ export default function ReportGeneration() {
         throw new Error(`Products: ${prodRes.error.message}`)
       }
       if (compRes.error) {
-        // Non-fatal — fall back to profile company_name
         log.warn('Company fetch warning (non-fatal)', { message: compRes.error.message, code: compRes.error.code })
         setCompany(prev => ({ ...prev, name: profile.company_name || 'Your Company' }))
       } else if (compRes.data) {
@@ -854,59 +829,227 @@ export default function ReportGeneration() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ background: '#f8f9fc', minHeight: '100vh', padding: '28px 32px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <div style={{ maxWidth: 1300, margin: '0 auto' }}>
+    <div style={{ background: '#f8f9fc', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+      {/* ─────────────────────────────────────────────────────────────────────
+          Mobile-only responsive overrides (≤ 640 px).
+          Desktop layout (> 640 px) is 100% unchanged.
+         ───────────────────────────────────────────────────────────────────── */}
+      <style>{`
+
+        /* ── Page wrapper padding ── */
+        .rg-page { padding: 28px 32px; }
+        @media (max-width: 640px) {
+          .rg-page { padding: 20px 16px; }
+        }
+
+        /* ── Page header: stack on mobile ── */
+        .rg-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          margin-bottom: 28px;
+        }
+        @media (max-width: 640px) {
+          .rg-header {
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+          .rg-header h1 { font-size: 19px !important; }
+          /* Refresh button: full-width touch target */
+          .rg-refresh-btn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 10px 16px !important;
+          }
+        }
+
+        /* ── Section card padding ── */
+        .rg-section { padding: 28px; }
+        @media (max-width: 640px) {
+          .rg-section { padding: 16px !important; border-radius: 14px !important; }
+        }
+
+        /* ── Date picker grid: side-by-side on desktop, stacked on mobile ── */
+        .rg-datepicker-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 22px;
+        }
+        @media (max-width: 480px) {
+          .rg-datepicker-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        /* ── Custom-range download buttons: side-by-side → stacked ── */
+        .rg-custom-btns {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 22px;
+          flex-wrap: wrap;
+        }
+        @media (max-width: 480px) {
+          .rg-custom-btns { flex-direction: column; }
+          .rg-custom-btns button {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 11px 16px !important;
+            font-size: 13px !important;
+          }
+        }
+
+        /* ── Report cards grid: 5 col desktop → 2 col mobile ── */
+        .rg-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 14px;
+        }
+        @media (max-width: 900px) {
+          .rg-cards-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 560px) {
+          .rg-cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        }
+        @media (max-width: 360px) {
+          .rg-cards-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── Customer table: scrollable on mobile, no layout changes on desktop ── */
+        .rg-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 640px) {
+          /* Make the table wide enough to scroll comfortably */
+          .rg-table-wrap table { min-width: 680px; }
+          /* Tighten cell padding */
+          .rg-table-wrap td,
+          .rg-table-wrap th { padding: 12px 10px !important; }
+          /* Generate Report button: smaller on tight screens */
+          .rg-gen-btn {
+            padding: 7px 12px !important;
+            font-size: 11px !important;
+          }
+        }
+
+        /* ── Section heading row ── */
+        @media (max-width: 640px) {
+          .rg-section-title { font-size: 14px !important; }
+        }
+      `}</style>
+
+      <div className="rg-page" style={{ maxWidth: 1300, margin: '0 auto' }}>
+
+        {/* ── Header ── */}
+        <div className="rg-header">
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111827', margin: 0 }}>Report Generation</h1>
-            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>Create and download various business reports</p>
+            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111827', margin: 0 }}>
+              Report Generation
+            </h1>
+            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>
+              Create and download various business reports
+            </p>
           </div>
-          <button onClick={() => fetchData(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#6b7280', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+          <button
+            onClick={() => fetchData(true)}
+            className="rg-refresh-btn"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', background: '#fff',
+              border: '1px solid #e5e7eb', borderRadius: 10,
+              fontSize: 13, fontWeight: 600, color: '#6b7280',
+              cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            }}
+          >
             <RefreshCcw size={13} className={refreshing ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
 
-        {/* Time-based Reports */}
-        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: 28, marginBottom: 24 }}>
+        {/* ── Time-based Reports ── */}
+        <div
+          className="rg-section"
+          style={{
+            background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 24,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Calendar size={17} style={{ color: '#7c3aed' }} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 }}>Time-based Reports</h2>
+            <h2 className="rg-section-title" style={{ fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 }}>
+              Time-based Reports
+            </h2>
           </div>
 
           {/* Date pickers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
+          <div className="rg-datepicker-grid">
             {[{ label: 'From Date', val: fromDate, set: setFromDate }, { label: 'To Date', val: toDate, set: setToDate }].map(({ label, val, set }) => (
               <div key={label}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>{label}</label>
-                <input type="date" value={val} onChange={e => set(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 13, color: '#374151', background: '#fff', outline: 'none' }} />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                  {label}
+                </label>
+                <input
+                  type="date"
+                  value={val}
+                  onChange={e => set(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', boxSizing: 'border-box',
+                    border: '1.5px solid #e5e7eb', borderRadius: 10,
+                    fontSize: 13, color: '#374151', background: '#fff', outline: 'none',
+                  }}
+                />
               </div>
             ))}
           </div>
 
           {/* Custom range buttons */}
           {fromDate && toDate && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
-              <button onClick={() => handleTimePDF('custom')} disabled={!!generating} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 10, border: 'none', background: generating ? '#e5e7eb' : '#4f46e5', color: generating ? '#9ca3af' : '#fff', fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer' }}>
-                {generating === 'time-custom' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} Download Custom PDF
+            <div className="rg-custom-btns">
+              <button
+                onClick={() => handleTimePDF('custom')}
+                disabled={!!generating}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '9px 20px', borderRadius: 10, border: 'none',
+                  background: generating ? '#e5e7eb' : '#4f46e5',
+                  color: generating ? '#9ca3af' : '#fff',
+                  fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {generating === 'time-custom'
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <FileText size={14} />}
+                Download Custom PDF
               </button>
-              <button onClick={() => handleTimeExcel('custom')} disabled={!!generating} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 10, border: 'none', background: generating ? '#e5e7eb' : '#059669', color: generating ? '#9ca3af' : '#fff', fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer' }}>
-                {generating === 'excel-custom' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Download General Ledger Excel
+              <button
+                onClick={() => handleTimeExcel('custom')}
+                disabled={!!generating}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '9px 20px', borderRadius: 10, border: 'none',
+                  background: generating ? '#e5e7eb' : '#059669',
+                  color: generating ? '#9ca3af' : '#fff',
+                  fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {generating === 'excel-custom'
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <FileSpreadsheet size={14} />}
+                Download General Ledger Excel
               </button>
             </div>
           )}
 
           {/* Report cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+          <div className="rg-cards-grid">
             {reportCards.map(card => (
               <ReportCard
                 key={card.period}
                 icon={<FileText size={22} style={{ color: card.iconColor }} />}
-                title={card.title} subtitle={card.subtitle} iconBg={card.iconBg}
+                title={card.title}
+                subtitle={card.subtitle}
+                iconBg={card.iconBg}
                 generating={generating === `time-${card.period}` || generating === `excel-${card.period}`}
                 onPDF={()   => handleTimePDF(card.period)}
                 onExcel={() => handleTimeExcel(card.period)}
@@ -915,45 +1058,92 @@ export default function ReportGeneration() {
           </div>
         </div>
 
-        {/* Customer Purchase History */}
-        <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: 28 }}>
+        {/* ── Customer Purchase History ── */}
+        <div
+          className="rg-section"
+          style={{
+            background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Users size={17} style={{ color: '#2563eb' }} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 }}>Customer Purchase History</h2>
+            <h2 className="rg-section-title" style={{ fontSize: 16, fontWeight: 800, color: '#111827', margin: 0 }}>
+              Customer Purchase History
+            </h2>
           </div>
 
           {customers.length === 0 ? (
-            <div style={{ padding: '48px 0', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>No customer data found.</div>
+            <div style={{ padding: '48px 0', textAlign: 'center', color: '#d1d5db', fontSize: 13, fontWeight: 600 }}>
+              No customer data found.
+            </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="rg-table-wrap">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                     {['CUSTOMER', 'EMAIL', 'TOTAL PURCHASES', 'TOTAL SPENT', 'TOTAL DISCOUNT', 'LAST PURCHASE', 'ACTIONS'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th
+                        key={h}
+                        style={{
+                          padding: '10px 16px', textAlign: 'left',
+                          fontSize: 11, fontWeight: 700, color: '#9ca3af',
+                          letterSpacing: '0.05em', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {customers.map((cust, idx) => (
-                    <tr key={cust.name}
-                      style={{ borderBottom: idx < customers.length - 1 ? '1px solid #f3f4f6' : 'none', transition: 'background 0.15s' }}
+                    <tr
+                      key={cust.name}
+                      style={{
+                        borderBottom: idx < customers.length - 1 ? '1px solid #f3f4f6' : 'none',
+                        transition: 'background 0.15s',
+                      }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#fafafa')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <td style={{ padding: '16px', fontSize: 14, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>{cust.name}</td>
-                      <td style={{ padding: '16px', fontSize: 13, color: '#6b7280' }}>{cust.email}</td>
-                      <td style={{ padding: '16px', fontSize: 13, color: '#374151' }}>{cust.totalOrders} order{cust.totalOrders !== 1 ? 's' : ''}</td>
-                      <td style={{ padding: '16px', fontSize: 13, fontWeight: 600, color: '#111827' }}>{fmtMoney(cust.totalSpent)}</td>
+                      <td style={{ padding: '16px', fontSize: 14, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>
+                        {cust.name}
+                      </td>
+                      <td style={{ padding: '16px', fontSize: 13, color: '#6b7280' }}>
+                        {cust.email}
+                      </td>
+                      <td style={{ padding: '16px', fontSize: 13, color: '#374151' }}>
+                        {cust.totalOrders} order{cust.totalOrders !== 1 ? 's' : ''}
+                      </td>
+                      <td style={{ padding: '16px', fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                        {fmtMoney(cust.totalSpent)}
+                      </td>
                       <td style={{ padding: '16px', fontSize: 13, color: cust.totalDiscount > 0 ? '#059669' : '#9ca3af' }}>
                         {cust.totalDiscount > 0 ? fmtMoney(cust.totalDiscount) : '—'}
                       </td>
-                      <td style={{ padding: '16px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(cust.lastPurchase)}</td>
+                      <td style={{ padding: '16px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                        {fmtDate(cust.lastPurchase)}
+                      </td>
                       <td style={{ padding: '16px' }}>
-                        <button onClick={() => handleCustomerReport(cust)} disabled={!!generating} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', borderRadius: 10, border: 'none', background: generating === `cust-${cust.name}` ? '#e5e7eb' : '#4f46e5', color: generating === `cust-${cust.name}` ? '#9ca3af' : '#fff', fontSize: 12, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                          {generating === `cust-${cust.name}` ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                        <button
+                          onClick={() => handleCustomerReport(cust)}
+                          disabled={!!generating}
+                          className="rg-gen-btn"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 7,
+                            padding: '8px 16px', borderRadius: 10, border: 'none',
+                            background: generating === `cust-${cust.name}` ? '#e5e7eb' : '#4f46e5',
+                            color: generating === `cust-${cust.name}` ? '#9ca3af' : '#fff',
+                            fontSize: 12, fontWeight: 700,
+                            cursor: generating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {generating === `cust-${cust.name}`
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <FileText size={13} />}
                           Generate Report
                         </button>
                       </td>
